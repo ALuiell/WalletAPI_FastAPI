@@ -1,36 +1,39 @@
-from pydantic import BaseModel, Field
-from typing import Optional
-from uuid import UUID, uuid4
+from uuid import uuid4
 from datetime import datetime, timezone
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+from database import Base
 
 
-class Category(BaseModel):
-    id: Optional[int] = None
-    name: str = Field(..., max_length=255)
+class SQLAlchemyCategory(Base):
+    __tablename__ = 'categories'
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), unique=True, index=True)
 
-    class Config:
-        orm_mode = True
-
-
-class UserAccount(BaseModel):
-    id: Optional[int] = None
-    number: str = Field(..., max_length=8)
-    type: str
-    name: str
-    balance: float = 0.0
-
-    class Config:
-        orm_mode = True
+    transactions = relationship("Transaction", back_populates="category")
 
 
-class Transaction(BaseModel):
-    id: Optional[int] = None
-    number_id: UserAccount = Field(...)
-    type: str
-    category_id: Category = Field(...)
-    date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    transaction_id: UUID = Field(default_factory=uuid4)
-    amount: float
+class SQLAlchemyUserAccount(Base):
+    __tablename__ = 'user_accounts'
+    id = Column(Integer, primary_key=True, index=True)
+    number = Column(String(8), unique=True, index=True)
+    type = Column(String)
+    name = Column(String)
+    balance = Column(Float, default=0)
 
-    class Config:
-        orm_mode = True
+    transactions = relationship("Transaction", back_populates="user_account")
+
+
+class SQLAlchemyTransaction(Base):
+    __tablename__ = 'transactions'
+    id = Column(Integer, primary_key=True, index=True)
+    number_id = Column(Integer, ForeignKey('user_accounts.id'))
+    type = Column(String)
+    category_id = Column(Integer, ForeignKey('categories.id'))
+    date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    transaction_id = Column(UUID(as_uuid=True), unique=True, default=lambda: uuid4())
+    amount = Column(Float)
+
+    user_account = relationship("UserAccount", back_populates="transactions")
+    category = relationship("Category", back_populates="transactions")
